@@ -1,5 +1,13 @@
+export interface EmojiServiceOptions {
+  baseUrl?: string;
+  format?: string;
+  [key: string]: any;
+}
+
 export class EmojiService {
-  constructor(options = {}) {
+  private options: Required<Pick<EmojiServiceOptions, 'baseUrl' | 'format'>> & EmojiServiceOptions;
+
+  constructor(options: EmojiServiceOptions = {}) {
     this.options = {
       baseUrl: options.baseUrl || 'https://cdn.joypixels.com/products/preview/emoji',
       format: options.format || 'svg',
@@ -7,7 +15,7 @@ export class EmojiService {
     };
   }
 
-  getEmojiUrl(value) {
+  getEmojiUrl(value: number): string {
     if (value >= 90) {
       return this.getEmojiByName('star-struck');
     } else if (value >= 80) {
@@ -23,11 +31,11 @@ export class EmojiService {
     }
   }
 
-  getEmojiByName(name) {
+  getEmojiByName(name: string): string {
     return `${this.options.baseUrl}/${name}.${this.options.format}`;
   }
 
-  getCustomEmoji(emoji) {
+  getCustomEmoji(emoji: string | number | null): string | null {
     if (!emoji) return null;
     return typeof emoji === 'string' ? emoji : this.getEmojiUrl(emoji);
   }

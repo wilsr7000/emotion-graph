@@ -6,14 +6,21 @@
   "main": "dist/emotion-graph.js",
   "module": "dist/emotion-graph.esm.js",
   "types": "dist/types/index.d.ts",
+  "style": "dist/emotion-graph.css",
   "scripts": {
     "build": "rollup -c",
+    "build:types": "tsc --emitDeclarationOnly",
+    "build:all": "npm run build && npm run build:types",
     "test": "jest",
-    "lint": "eslint src/**/*.js",
-    "format": "prettier --write \"src/**/*.{js,jsx,ts,tsx,json,css,scss,md}\"",
-    "docs": "jsdoc -c jsdoc.json",
-    "prepare": "npm run build",
-    "start": "cd examples/basic && python -m http.server 8000"
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "lint": "eslint src/**/*.{js,ts}",
+    "format": "prettier --write \"src/**/*.{js,ts,json,css,scss,md}\"",
+    "docs": "typedoc src/index.ts",
+    "prepare": "npm run build:all",
+    "start": "cd examples/basic && python3 -m http.server 8000",
+    "typecheck": "tsc --noEmit",
+    "semantic-release": "semantic-release"
   },
   "keywords": [
     "emotion-graph",
@@ -35,22 +42,38 @@
     "url": "https://github.com/richardwilson/emotion-graph/issues"
   },
   "homepage": "https://github.com/richardwilson/emotion-graph#readme",
-  "dependencies": {},
+  "dependencies": {
+    "tslib": "^2.6.2"
+  },
   "devDependencies": {
     "@babel/core": "^7.23.0",
     "@babel/preset-env": "^7.22.20",
+    "@babel/preset-typescript": "^7.23.0",
     "@rollup/plugin-babel": "^6.0.4",
     "@rollup/plugin-commonjs": "^25.0.5",
     "@rollup/plugin-node-resolve": "^15.2.3",
     "@rollup/plugin-terser": "^0.4.4",
+    "@rollup/plugin-typescript": "^11.1.6",
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/git": "^10.0.1",
+    "@types/jest": "^29.5.12",
+    "@typescript-eslint/eslint-plugin": "^7.1.0",
+    "@typescript-eslint/parser": "^7.1.0",
     "eslint": "^8.51.0",
     "jest": "^29.7.0",
-    "jsdoc": "^4.0.2",
+    "jest-environment-jsdom": "^29.7.0",
     "prettier": "^3.0.3",
-    "rollup": "^4.0.2"
+    "rollup": "^4.0.2",
+    "semantic-release": "^22.0.8",
+    "ts-jest": "^29.1.2",
+    "typedoc": "^0.25.9",
+    "typescript": "^5.3.3"
   },
   "files": [
     "dist",
     "src"
-  ]
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
 } 

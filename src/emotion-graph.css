@@ -1,0 +1,95 @@
+.emotion-line-graph {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.emotion-point {
+  fill: var(--emotion-graph-point-color, #0288d1);
+  stroke: white;
+  stroke-width: 2;
+  cursor: ns-resize;
+  transition: r 0.2s ease;
+}
+
+.emotion-point:hover {
+  fill: var(--emotion-graph-point-hover-color, #01579b);
+  r: 6;
+}
+
+.emotion-line-path {
+  fill: none;
+  stroke: var(--emotion-graph-line-color, #0288d1);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.emotion-area-path {
+  fill: url(#emotion-gradient);
+  stroke: none;
+}
+
+/* Dark mode support */
+[data-theme="dark"] .emotion-point {
+  --emotion-graph-point-color: #64b5f6;
+  --emotion-graph-point-hover-color: #90caf9;
+}
+
+[data-theme="dark"] .emotion-line-path {
+  --emotion-graph-line-color: #64b5f6;
+}
+
+/* Optional tooltip styles */
+.emotion-tooltip {
+  position: absolute;
+  background-color: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  pointer-events: none;
+  transform: translate(-50%, -100%);
+  z-index: 1000;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.emotion-tooltip.visible {
+  opacity: 1;
+}
+
+.emotion-tooltip:after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -5px;
+  border-width: 5px;
+  border-style: solid;
+  border-color: rgba(0, 0, 0, 0.8) transparent transparent transparent;
+}
+
+/* Container styles (optional) */
+.emotion-graph-container {
+  position: relative;
+  width: 100%;
+  height: 180px;
+  margin: 20px 0;
+  border-radius: 4px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .emotion-point {
+    r: 3;
+  }
+  
+  .emotion-point:hover {
+    r: 5;
+  }
+  
+  .emotion-line-path {
+    stroke-width: 1.5;
+  }
+} 

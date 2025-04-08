@@ -1,42 +1,46 @@
-/**
- * EmotionGraph - A reusable, modular emotion graph component
- * 
- * This class provides a more stable and maintainable implementation of the
- * emotion graph visualization used in journey maps.
- */
+import { EmojiService, EmojiServiceOptions } from './EmojiService';
 
-import { EmojiService } from './EmojiService';
+export interface EmotionGraphOptions {
+  container: HTMLElement | null;
+  width?: number;
+  height?: number;
+  animationDuration?: number;
+  columnCenters?: number[];
+  stageCount?: number;
+  emotionData?: number[];
+  customEmojis?: (string | null)[];
+  stageLabels?: string[];
+  onEmotionChange?: (index: number, value: number) => void;
+  onEmojiChange?: (index: number, emoji: string | null) => void;
+  emojiOptions?: EmojiServiceOptions;
+}
 
-// Constants for emotion graph
-const EMOTION_CONSTANTS = {
-  MIN_VALUE: 0,
-  MAX_VALUE: 100,
-  DELIGHTED_THRESHOLD: 90,
-  FRUSTRATED_THRESHOLD: 10,
-  DEFAULT_EMOJI_SET: {
-    DELIGHTED: '😍',
-    HAPPY: '😊',
-    NEUTRAL: '😐',
-    UNHAPPY: '😞',
-    FRUSTRATED: '😡'
-  },
-  POINT_RADIUS: 4,
-  TOP_PADDING: 40,
-  BOTTOM_PADDING: 15,
-  EMOJI_SIZE: 30
+export interface PointMovedEvent {
+  index: number;
+  value: number;
+}
+
+export interface EmojiChangedEvent {
+  index: number;
+  emoji: string | null;
+}
+
+type EventHandlers = {
+  [key: string]: Array<(data?: any) => void>;
 };
 
-/**
- * EmotionGraph - Main class for the emotion graph component
- */
 export class EmotionGraph {
-  /**
-   * Create a new emotion graph
-   * @param {Object} options - Configuration options
-   */
-  constructor(options = {}) {
-    this.options = {
-      container: null,
+  private options: Required<Pick<EmotionGraphOptions, 'width' | 'height' | 'animationDuration' | 'columnCenters' | 'stageCount' | 'emotionData' | 'customEmojis' | 'stageLabels'>> & Omit<EmotionGraphOptions, 'width' | 'height' | 'animationDuration' | 'columnCenters' | 'stageCount' | 'emotionData' | 'customEmojis' | 'stageLabels'>;
+  private emojiService: EmojiService;
+  private eventHandlers: EventHandlers;
+  private svg!: SVGSVGElement;
+  private linePath!: SVGPathElement;
+  private areaPath!: SVGPathElement;
+  private draggingPoint: SVGCircleElement | null = null;
+
+  constructor(options: EmotionGraphOptions) {
+    // Apply default values
+    const defaults = {
       width: 600,
       height: 180,
       animationDuration: 300,
@@ -44,9 +48,12 @@ export class EmotionGraph {
       stageCount: 6,
       emotionData: [],
       customEmojis: [],
-      stageLabels: [],
-      onEmotionChange: null,
-      onEmojiChange: null,
+      stageLabels: []
+    };
+
+    // Merge with user options
+    this.options = {
+      ...defaults,
       ...options
     };
 
@@ -55,16 +62,13 @@ export class EmotionGraph {
     this.initialize();
   }
 
-  /**
-   * Initialize the emotion graph
-   */
-  initialize() {
+  initialize(): void {
     this.createSvg();
     this.setupEventListeners();
     this.render();
   }
 
-  createSvg() {
+  createSvg(): void {
     const { width, height } = this.options;
     
     this.svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -113,7 +117,7 @@ export class EmotionGraph {
     }
   }
 
-  setupEventListeners() {
+  setupEventListeners(): void {
     this.svg.addEventListener('mousedown', this.startDrag.bind(this));
     document.addEventListener('mousemove', this.drag.bind(this));
     document.addEventListener('mouseup', this.endDrag.bind(this));
@@ -124,7 +128,7 @@ export class EmotionGraph {
     document.addEventListener('touchend', this.endDrag.bind(this));
   }
 
-  startDrag(e) {
+  startDrag(e: MouseEvent | TouchEvent): void {
     const point = this.getPointFromEvent(e);
     if (point) {
       this.draggingPoint = point;
@@ -132,22 +136,27 @@ export class EmotionGraph {
     }
   }
 
-  drag(e) {
+  drag(e: MouseEvent | TouchEvent): void {
     if (this.draggingPoint) {
       const { height } = this.options;
       const rect = this.svg.getBoundingClientRect();
-      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      
+      // Handle both mouse and touch events
+      const clientY = 'touches' in e && e.touches.length 
+        ? e.touches[0].clientY 
+        : (e as MouseEvent).clientY;
+      
       const y = clientY - rect.top;
       
       // Convert to percentage (0-100)
       let value = Math.max(0, Math.min(100, (1 - y / height) * 100));
       
       // Update point position
-      this.draggingPoint.setAttribute('cy', height * (1 - value / 100));
+      this.draggingPoint.setAttribute('cy', (height * (1 - value / 100)).toString());
       
       // Update data
-      const index = Array.from(this.svg.querySelectorAll('.emotion-point'))
-        .indexOf(this.draggingPoint);
+      const points = Array.from(this.svg.querySelectorAll('.emotion-point'));
+      const index = points.indexOf(this.draggingPoint);
       
       if (index !== -1) {
         this.options.emotionData[index] = value;
@@ -164,21 +173,21 @@ export class EmotionGraph {
     }
   }
 
-  endDrag() {
+  endDrag(): void {
     this.draggingPoint = null;
   }
 
-  getPointFromEvent(e) {
-    const target = e.target;
+  getPointFromEvent(e: MouseEvent | TouchEvent): SVGCircleElement | null {
+    const target = e.target as Element;
     if (target.classList.contains('emotion-point')) {
-      return target;
+      return target as SVGCircleElement;
     }
     return null;
   }
 
-  updatePaths() {
+  updatePaths(): void {
     const { width, height } = this.options;
-    const points = Array.from(this.svg.querySelectorAll('.emotion-point'));
+    const points = Array.from(this.svg.querySelectorAll('.emotion-point')) as SVGCircleElement[];
     
     if (points.length === 0) return;
     
@@ -196,7 +205,7 @@ export class EmotionGraph {
     this.areaPath.setAttribute('d', areaPath);
   }
 
-  render() {
+  render(): void {
     const { width, height, emotionData, customEmojis } = this.options;
     
     // Clear existing points
@@ -209,9 +218,9 @@ export class EmotionGraph {
       
       const point = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
       point.classList.add('emotion-point');
-      point.setAttribute('cx', x);
-      point.setAttribute('cy', y);
-      point.setAttribute('r', 4);
+      point.setAttribute('cx', x.toString());
+      point.setAttribute('cy', y.toString());
+      point.setAttribute('r', '4');
       
       // Add emoji if available
       const emoji = customEmojis[i];
@@ -222,8 +231,8 @@ export class EmotionGraph {
           emojiImage.setAttribute('href', emojiUrl);
           emojiImage.setAttribute('width', '24');
           emojiImage.setAttribute('height', '24');
-          emojiImage.setAttribute('x', x - 12);
-          emojiImage.setAttribute('y', y - 30);
+          emojiImage.setAttribute('x', (x - 12).toString());
+          emojiImage.setAttribute('y', (y - 30).toString());
           this.svg.appendChild(emojiImage);
         }
       }
@@ -235,42 +244,42 @@ export class EmotionGraph {
     this.emit('graphRendered');
   }
 
-  on(event, callback) {
+  on(event: string, callback: (data?: any) => void): void {
     if (!this.eventHandlers[event]) {
       this.eventHandlers[event] = [];
     }
     this.eventHandlers[event].push(callback);
   }
 
-  off(event, callback) {
+  off(event: string, callback: (data?: any) => void): void {
     if (this.eventHandlers[event]) {
       this.eventHandlers[event] = this.eventHandlers[event]
         .filter(handler => handler !== callback);
     }
   }
 
-  emit(event, data) {
+  emit(event: string, data?: any): void {
     if (this.eventHandlers[event]) {
       this.eventHandlers[event].forEach(callback => callback(data));
     }
   }
 
-  updateEmotionData(data) {
+  updateEmotionData(data: number[]): void {
     this.options.emotionData = data;
     this.render();
   }
 
-  updateCustomEmojis(emojis) {
+  updateCustomEmojis(emojis: (string | null)[]): void {
     this.options.customEmojis = emojis;
     this.render();
   }
 
-  destroy() {
+  destroy(): void {
     // Remove event listeners
-    document.removeEventListener('mousemove', this.drag);
-    document.removeEventListener('mouseup', this.endDrag);
-    document.removeEventListener('touchmove', this.drag);
-    document.removeEventListener('touchend', this.endDrag);
+    document.removeEventListener('mousemove', this.drag.bind(this));
+    document.removeEventListener('mouseup', this.endDrag.bind(this));
+    document.removeEventListener('touchmove', this.drag.bind(this));
+    document.removeEventListener('touchend', this.endDrag.bind(this));
     
     // Remove SVG
     if (this.svg.parentNode) {
@@ -280,8 +289,4 @@ export class EmotionGraph {
     // Clear event handlers
     this.eventHandlers = {};
   }
-}
-
-// Export the class
-window.EmotionGraph = EmotionGraph;
-window.EmojiService = EmojiService; 
+} 
