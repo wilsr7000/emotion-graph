@@ -343,13 +343,59 @@ const demoMessages = [
     { type: "agent", text: "One T! 5 guesses left.", game: "hangman", display: "_ A T T E _ _" },
 ];
 
+// Poll interval in ms
+const POLL_INTERVAL = 500;
+
+// Data source URL (change this to your endpoint)
+let DATA_URL = null;
+
 document.addEventListener('DOMContentLoaded', () => {
     renderMessages();
     renderState();
     renderTimeline();
     setupChannelSwitcher();
     setupCategoryToggles();
+
+    // Start polling if URL is set
+    if (DATA_URL) {
+        setInterval(pollData, POLL_INTERVAL);
+    }
 });
+
+async function pollData() {
+    try {
+        const response = await fetch(DATA_URL);
+        const data = await response.json();
+
+        // Update state
+        if (data.state) {
+            Object.assign(demoState, data.state);
+            renderState();
+        }
+
+        // Update messages
+        if (data.messages) {
+            demoMessages.length = 0;
+            demoMessages.push(...data.messages);
+            renderMessages();
+        }
+
+        // Update timeline
+        if (data.timeline) {
+            renderTimelineFromData(data.timeline);
+        }
+    } catch (e) {
+        console.log('Poll error:', e);
+    }
+}
+
+function renderTimelineFromData(t) {
+    if (t.voiceOutput) document.getElementById('voiceOutputTrack').innerHTML = `<div class="timeline-bar ${t.voiceOutput.active ? 'active' : ''}" data-type="voice-output" style="left: ${t.voiceOutput.start}%; width: ${t.voiceOutput.width}%;">${t.voiceOutput.label}</div>`;
+    if (t.reasoning) document.getElementById('reasoningTrack').innerHTML = `<div class="timeline-bar ${t.reasoning.active ? 'active' : ''}" data-type="reasoning" style="left: ${t.reasoning.start}%; width: ${t.reasoning.width}%;">${t.reasoning.label}</div>`;
+    if (t.lookup) document.getElementById('lookupTrack').innerHTML = `<div class="timeline-bar ${t.lookup.active ? 'active' : ''}" data-type="lookup" style="left: ${t.lookup.start}%; width: ${t.lookup.width}%;">${t.lookup.label}</div>`;
+    if (t.voiceResult) document.getElementById('voiceResultTrack').innerHTML = `<div class="timeline-bar ${t.voiceResult.active ? 'active' : ''}" data-type="voice-result" style="left: ${t.voiceResult.start}%; width: ${t.voiceResult.width}%;">${t.voiceResult.label}</div>`;
+    if (t.elapsed) document.getElementById('timelineElapsed').textContent = t.elapsed;
+}
 
 function renderMessages() {
     const container = document.getElementById('conversationMessages');
