@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GSX Voice Demo</title>
+    <style>
+/* GSX Voice Demo - Styles */
+:root {
+    --bg-primary: #0f1419;
+    --bg-secondary: #192734;
+    --bg-tertiary: #22303c;
+    --bg-panel: #1a2634;
+    --border-color: #38444d;
+    --text-primary: #ffffff;
+    --text-secondary: #8899a6;
+    --text-muted: #657786;
+    --accent-blue: #1da1f2;
+    --accent-green: #17bf63;
+    --accent-orange: #ffad1f;
+    --accent-red: #e0245e;
+    --accent-purple: #7856ff;
+    --voice-output-color: #1da1f2;
+    --reasoning-color: #7856ff;
+    --lookup-color: #17bf63;
+    --voice-result-color: #ffad1f;
+    --panel-padding: 16px;
+    --panel-gap: 12px;
+    --border-radius: 8px;
+}
+*, *::before, *::after { box-sizing: border-box; }
+body {
+    margin: 0; padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 14px; line-height: 1.5;
+}
+.demo-container { display: flex; flex-direction: column; min-height: 100vh; }
+.demo-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 20px; background-color: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color); flex-shrink: 0; flex-wrap: wrap; gap: 12px;
+}
+.logo { display: flex; flex-direction: column; }
+.logo-text { font-size: 24px; font-weight: 700; color: var(--accent-blue); letter-spacing: -0.5px; }
+.logo-subtitle { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.channel-switcher { display: flex; gap: 4px; background-color: var(--bg-tertiary); padding: 4px; border-radius: 8px; }
+.channel-btn {
+    display: flex; align-items: center; gap: 6px; padding: 8px 16px;
+    background: transparent; border: none; color: var(--text-secondary);
+    font-size: 13px; font-weight: 500; cursor: pointer; border-radius: 6px; transition: all 0.2s ease;
+}
+.channel-btn:hover { color: var(--text-primary); background-color: var(--bg-panel); }
+.channel-btn.active { color: var(--text-primary); background-color: var(--accent-blue); }
+.channel-btn svg { opacity: 0.8; }
+.session-info { display: flex; align-items: center; gap: 12px; }
+.session-id { font-family: 'SF Mono', Monaco, monospace; font-size: 12px; color: var(--text-muted); }
+.session-status { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; }
+.session-status::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background-color: var(--text-muted); }
+.session-status.online::before { background-color: var(--accent-green); box-shadow: 0 0 8px var(--accent-green); }
+.demo-main {
+    display: grid; grid-template-columns: 1fr 1.2fr 1fr; gap: var(--panel-gap);
+    padding: var(--panel-gap); flex: 1; min-height: 0;
+}
+.panel {
+    display: flex; flex-direction: column; background-color: var(--bg-panel);
+    border-radius: var(--border-radius); border: 1px solid var(--border-color); overflow: hidden;
+}
+.panel-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px var(--panel-padding); border-bottom: 1px solid var(--border-color); flex-shrink: 0;
+}
+.panel-header h2 { margin: 0; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary); }
+.channel-indicator { font-size: 11px; font-weight: 600; text-transform: uppercase; padding: 4px 8px; border-radius: 4px; background-color: var(--accent-blue); color: white; }
+.conversation-messages { flex: 1; overflow-y: auto; padding: var(--panel-padding); display: flex; flex-direction: column; gap: 12px; }
+.message { display: flex; flex-direction: column; max-width: 85%; animation: messageIn 0.3s ease; }
+@keyframes messageIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.message.user { align-self: flex-end; }
+.message.agent { align-self: flex-start; }
+.message-content { padding: 10px 14px; border-radius: 16px; font-size: 14px; line-height: 1.4; }
+.message.user .message-content { background-color: var(--accent-blue); color: white; border-bottom-right-radius: 4px; }
+.message.agent .message-content { background-color: var(--bg-tertiary); color: var(--text-primary); border-bottom-left-radius: 4px; }
+.message-meta { font-size: 11px; color: var(--text-muted); margin-top: 4px; padding: 0 4px; }
+.message.user .message-meta { text-align: right; }
+.game-display { font-family: 'SF Mono', Monaco, monospace; background-color: var(--bg-primary); padding: 12px; border-radius: 8px; margin-top: 8px; white-space: pre; font-size: 13px; line-height: 1.6; }
+.hangman-word { font-size: 20px; letter-spacing: 4px; text-align: center; padding: 8px 0; }
+.tictactoe-board { text-align: center; line-height: 1.3; }
+.conversation-input { display: flex; gap: 8px; padding: var(--panel-padding); border-top: 1px solid var(--border-color); background-color: var(--bg-secondary); }
+.conversation-input input { flex: 1; padding: 10px 14px; background-color: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 20px; color: var(--text-primary); font-size: 14px; outline: none; }
+.conversation-input input:focus { border-color: var(--accent-blue); }
+.conversation-input input::placeholder { color: var(--text-muted); }
+.send-btn { width: 40px; height: 40px; border-radius: 50%; background-color: var(--accent-blue); border: none; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.state-section { flex: 0 0 auto; border-bottom: 1px solid var(--border-color); }
+.state-content { padding: var(--panel-padding); max-height: 200px; overflow-y: auto; }
+.state-content pre { margin: 0; font-family: 'SF Mono', Monaco, monospace; font-size: 12px; line-height: 1.6; color: var(--text-primary); white-space: pre-wrap; word-break: break-word; }
+.json-key { color: var(--accent-blue); }
+.json-string { color: var(--accent-green); }
+.json-number { color: var(--accent-orange); }
+.json-boolean { color: var(--accent-purple); }
+.expand-btn, .edit-btn { width: 28px; height: 28px; border-radius: 6px; background-color: var(--bg-tertiary); border: 1px solid var(--border-color); color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.timeline-section { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.timeline-controls { display: flex; align-items: center; gap: 8px; }
+.timeline-time { font-family: 'SF Mono', Monaco, monospace; font-size: 12px; color: var(--accent-green); background-color: var(--bg-tertiary); padding: 4px 8px; border-radius: 4px; }
+.activity-timeline { flex: 1; padding: var(--panel-padding); display: flex; flex-direction: column; gap: 16px; overflow-y: auto; }
+.timeline-lane { display: flex; align-items: flex-start; gap: 12px; }
+.lane-label { width: 90px; flex-shrink: 0; font-size: 12px; font-weight: 500; color: var(--text-secondary); padding-top: 4px; }
+.lane-track { flex: 1; position: relative; height: 50px; background-color: var(--bg-tertiary); border-radius: 4px; overflow: hidden; }
+.lane-bar-container { position: relative; height: 100%; }
+.timeline-bar { position: absolute; top: 8px; height: 20px; border-radius: 4px; display: flex; align-items: center; padding: 0 8px; font-size: 11px; font-weight: 500; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.timeline-bar.active { animation: barPulse 1s ease infinite; }
+@keyframes barPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+.timeline-bar[data-type="voice-output"] { background: linear-gradient(90deg, var(--voice-output-color), #4db8ff); }
+.timeline-bar[data-type="reasoning"] { background: linear-gradient(90deg, var(--reasoning-color), #9d7fff); }
+.timeline-bar[data-type="lookup"] { background: linear-gradient(90deg, var(--lookup-color), #4cd964); }
+.timeline-bar[data-type="voice-result"] { background: linear-gradient(90deg, var(--voice-result-color), #ffc24d); }
+.timeline-marker { position: absolute; bottom: 4px; font-size: 9px; color: var(--text-muted); font-family: 'SF Mono', Monaco, monospace; transform: translateX(-50%); }
+.timeline-scale { display: flex; justify-content: space-between; padding: 8px 102px 0 102px; font-size: 10px; color: var(--text-muted); font-family: 'SF Mono', Monaco, monospace; border-top: 1px solid var(--border-color); margin-top: 8px; }
+.knowledge-section, .schema-section, .library-section { border-bottom: 1px solid var(--border-color); }
+.library-section { flex: 1; min-height: 0; border-bottom: none; }
+.knowledge-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: var(--panel-padding); }
+.knowledge-item { background-color: var(--bg-tertiary); border-radius: 6px; padding: 10px; display: flex; flex-direction: column; gap: 4px; }
+.knowledge-item.active { background-color: var(--bg-primary); border: 1px solid var(--accent-blue); }
+.knowledge-item[data-type="facts"] .knowledge-label { color: var(--accent-blue); }
+.knowledge-item[data-type="procedures"] .knowledge-label { color: var(--accent-green); }
+.knowledge-item[data-type="schemas"] .knowledge-label { color: var(--accent-purple); }
+.knowledge-item[data-type="policies"] .knowledge-label { color: var(--accent-orange); }
+.knowledge-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+.knowledge-value { font-size: 12px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.schema-rules { padding: var(--panel-padding); display: flex; flex-direction: column; gap: 8px; }
+.rule-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background-color: var(--bg-tertiary); border-radius: 6px; }
+.rule-item.hidden { display: none; }
+.rule-key { font-family: 'SF Mono', Monaco, monospace; font-size: 12px; color: var(--accent-purple); }
+.rule-value { font-family: 'SF Mono', Monaco, monospace; font-size: 12px; color: var(--text-primary); background-color: var(--bg-primary); padding: 2px 8px; border-radius: 4px; }
+.library-tree { padding: var(--panel-padding); overflow-y: auto; flex: 1; }
+.library-category { margin-bottom: 8px; }
+.category-header { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background-color: var(--bg-tertiary); border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 500; color: var(--text-secondary); }
+.category-header:hover { background-color: var(--bg-primary); color: var(--text-primary); }
+.collapse-icon { font-size: 10px; color: var(--text-muted); }
+.category-items { padding-left: 20px; margin-top: 4px; }
+.library-category.collapsed .category-items { display: none; }
+.schema-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; border-radius: 4px; cursor: pointer; }
+.schema-item:hover { background-color: var(--bg-tertiary); }
+.schema-item.active { background-color: var(--bg-tertiary); border-left: 2px solid var(--accent-blue); }
+.schema-name { font-size: 12px; color: var(--text-primary); }
+.schema-stats { font-size: 10px; color: var(--text-muted); font-family: 'SF Mono', Monaco, monospace; }
+.schema-more { padding: 6px 10px; font-size: 11px; color: var(--text-muted); font-style: italic; }
+.typing-indicator { display: flex; align-items: center; gap: 4px; padding: 10px 14px; background-color: var(--bg-tertiary); border-radius: 16px; border-bottom-left-radius: 4px; width: fit-content; }
+.typing-dot { width: 6px; height: 6px; border-radius: 50%; background-color: var(--text-muted); animation: typingBounce 1.4s ease-in-out infinite; }
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes typingBounce { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-4px); } }
+body[data-channel="sms"] .conversation-panel { background-color: #1a2e1a; }
+body[data-channel="sms"] .channel-indicator { background-color: var(--accent-green); }
+body[data-channel="sms"] .message.user .message-content { background-color: var(--accent-green); }
+body[data-channel="voice"] .conversation-panel { background-color: #2a1a2e; }
+body[data-channel="voice"] .channel-indicator { background-color: var(--accent-purple); }
+body[data-channel="voice"] .message.user .message-content { background-color: var(--accent-purple); }
+@media (max-width: 1200px) { .demo-main { grid-template-columns: 1fr 1fr; } .schema-panel { display: none; } }
+@media (max-width: 900px) { .demo-main { grid-template-columns: 1fr; } .center-panel { order: -1; } }
+    </style>
+</head>
+<body>
+    <div class="demo-container">
+        <header class="demo-header">
+            <div class="logo">
+                <span class="logo-text">GSX</span>
+                <span class="logo-subtitle">Canonical Knowledge Infrastructure</span>
+            </div>
+            <div class="channel-switcher">
+                <button class="channel-btn active" data-channel="chat">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>
+                    Chat
+                </button>
+                <button class="channel-btn" data-channel="sms">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14z"/></svg>
+                    SMS
+                </button>
+                <button class="channel-btn" data-channel="voice">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5zm6 6c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+                    Voice
+                </button>
+            </div>
+            <div class="session-info">
+                <span class="session-id">Session: demo-2024-001</span>
+                <span class="session-status online">Connected</span>
+            </div>
+        </header>
+
+        <main class="demo-main">
+            <section class="panel conversation-panel">
+                <div class="panel-header">
+                    <h2>Conversation</h2>
+                    <span class="channel-indicator" id="channelIndicator">chat</span>
+                </div>
+                <div class="conversation-messages" id="conversationMessages"></div>
+                <div class="conversation-input">
+                    <input type="text" id="userInput" placeholder="Type your message..." autocomplete="off">
+                    <button id="sendBtn" class="send-btn">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+                    </button>
+                </div>
+            </section>
+
+            <section class="panel center-panel">
+                <div class="state-section">
+                    <div class="panel-header">
+                        <h2>System State</h2>
+                    </div>
+                    <div class="state-content">
+                        <pre id="stateDisplay"></pre>
+                    </div>
+                </div>
+                <div class="timeline-section">
+                    <div class="panel-header">
+                        <h2>System Activity</h2>
+                        <div class="timeline-controls">
+                            <span class="timeline-time" id="timelineElapsed">1847ms</span>
+                        </div>
+                    </div>
+                    <div class="activity-timeline" id="activityTimeline">
+                        <div class="timeline-lane">
+                            <div class="lane-label">Voice Output</div>
+                            <div class="lane-track">
+                                <div class="lane-bar-container" id="voiceOutputTrack"></div>
+                            </div>
+                        </div>
+                        <div class="timeline-lane">
+                            <div class="lane-label">Reasoning</div>
+                            <div class="lane-track">
+                                <div class="lane-bar-container" id="reasoningTrack"></div>
+                            </div>
+                        </div>
+                        <div class="timeline-lane">
+                            <div class="lane-label">State Lookup</div>
+                            <div class="lane-track">
+                                <div class="lane-bar-container" id="lookupTrack"></div>
+                            </div>
+                        </div>
+                        <div class="timeline-lane">
+                            <div class="lane-label">Voice Result</div>
+                            <div class="lane-track">
+                                <div class="lane-bar-container" id="voiceResultTrack"></div>
+                            </div>
+                        </div>
+                        <div class="timeline-scale">
+                            <span>0ms</span><span>500ms</span><span>1000ms</span><span>1500ms</span><span>2000ms</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel schema-panel">
+                <div class="knowledge-section">
+                    <div class="panel-header"><h2>Canonical Knowledge Retrieved</h2></div>
+                    <div class="knowledge-grid" id="knowledgeGrid">
+                        <div class="knowledge-item active" data-type="facts">
+                            <span class="knowledge-label">Facts</span>
+                            <span class="knowledge-value">"Standard hangman: 6 guesses"</span>
+                        </div>
+                        <div class="knowledge-item active" data-type="procedures">
+                            <span class="knowledge-label">Procedures</span>
+                            <span class="knowledge-value">"Reveal matching letters"</span>
+                        </div>
+                        <div class="knowledge-item active" data-type="schemas">
+                            <span class="knowledge-label">Schemas</span>
+                            <span class="knowledge-value">{ word, revealed, guessed }</span>
+                        </div>
+                        <div class="knowledge-item active" data-type="policies">
+                            <span class="knowledge-label">Policies</span>
+                            <span class="knowledge-value">"Never reveal answer"</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="schema-section">
+                    <div class="panel-header"><h2>Schema Rules</h2></div>
+                    <div class="schema-rules">
+                        <div class="rule-item"><span class="rule-key">vowel_cost</span><span class="rule-value">1</span></div>
+                        <div class="rule-item"><span class="rule-key">consonant_cost</span><span class="rule-value">1</span></div>
+                        <div class="rule-item"><span class="rule-key">total_allowed</span><span class="rule-value">6</span></div>
+                    </div>
+                </div>
+                <div class="library-section">
+                    <div class="panel-header"><h2>Schema Library</h2></div>
+                    <div class="library-tree">
+                        <div class="library-category">
+                            <div class="category-header"><span class="collapse-icon">&#9660;</span>Games (47 schemas)</div>
+                            <div class="category-items">
+                                <div class="schema-item active"><span class="schema-name">hangman (v3.2)</span><span class="schema-stats">12,847 | 99.7%</span></div>
+                                <div class="schema-item"><span class="schema-name">tic_tac_toe (v2.1)</span><span class="schema-stats">8,293 | 99.9%</span></div>
+                                <div class="schema-more">+ 45 more</div>
+                            </div>
+                        </div>
+                        <div class="library-category collapsed">
+                            <div class="category-header"><span class="collapse-icon">&#9654;</span>Healthcare (312 schemas)</div>
+                            <div class="category-items"></div>
+                        </div>
+                        <div class="library-category collapsed">
+                            <div class="category-header"><span class="collapse-icon">&#9654;</span>Government (248 schemas)</div>
+                            <div class="category-items"></div>
+                        </div>
+                        <div class="library-category collapsed">
+                            <div class="category-header"><span class="collapse-icon">&#9654;</span>Telecom (186 schemas)</div>
+                            <div class="category-items"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+const demoState = {
+    session_id: "demo-2024-001",
+    current_channel: "chat",
+    active_games: {
+        hangman: {
+            secret_word: "PATTERN",
+            revealed: "_A__ER_",
+            guessed_letters: ["E", "S", "A", "T", "R"],
+            incorrect_guesses: ["S"],
+            remaining_guesses: 5,
+            status: "active"
+        },
+        tic_tac_toe: {
+            board: [["O", "_", "X"], ["_", "X", "_"], ["O", "_", "_"]],
+            current_turn: "player",
+            status: "active"
+        }
+    }
+};
+
+const demoMessages = [
+    { type: "user", text: "Let's play hangman. You host - pick a word." },
+    { type: "agent", text: "Ready. I've picked a 7-letter word. You have 6 guesses.", game: "hangman", display: "_ _ _ _ _ _ _" },
+    { type: "user", text: "E" },
+    { type: "agent", text: "Two E's found! 6 guesses remaining.", game: "hangman", display: "_ E _ _ E _ _" },
+    { type: "user", text: "Let's also play tic-tac-toe. I'll be X." },
+    { type: "agent", text: "Got it. Adding tic-tac-toe - you're X, I'm O.", game: "tictactoe" },
+    { type: "user", text: "Center square" },
+    { type: "agent", text: "You took center. I'll take top-left.", game: "tictactoe-move" },
+    { type: "user", text: "T in hangman" },
+    { type: "agent", text: "One T! 5 guesses left.", game: "hangman", display: "_ A T T E _ _" },
+];
+
+document.addEventListener('DOMContentLoaded', () => {
+    renderMessages();
+    renderState();
+    renderTimeline();
+    setupChannelSwitcher();
+    setupCategoryToggles();
+});
+
+function renderMessages() {
+    const container = document.getElementById('conversationMessages');
+    container.innerHTML = '';
+    demoMessages.forEach(msg => {
+        const el = document.createElement('div');
+        el.className = `message ${msg.type}`;
+        let content = `<div class="message-content">${msg.text}`;
+        if (msg.game === 'hangman') content += `<div class="game-display"><div class="hangman-word">${msg.display}</div></div>`;
+        else if (msg.game === 'tictactoe') content += `<div class="game-display"><div class="tictactoe-board">  _ | _ | _\n ───┼───┼───\n  _ | _ | _\n ───┼───┼───\n  _ | _ | _</div></div>`;
+        else if (msg.game === 'tictactoe-move') content += `<div class="game-display"><div class="tictactoe-board">  O | _ | _\n ───┼───┼───\n  _ | X | _\n ───┼───┼───\n  _ | _ | _</div></div>`;
+        content += '</div>';
+        content += `<div class="message-meta">${msg.type === 'user' ? 'You' : 'Agent'} · just now</div>`;
+        el.innerHTML = content;
+        container.appendChild(el);
+    });
+    const typing = document.createElement('div');
+    typing.className = 'message agent';
+    typing.innerHTML = `<div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>`;
+    container.appendChild(typing);
+    container.scrollTop = container.scrollHeight;
+}
+
+function renderState() {
+    const el = document.getElementById('stateDisplay');
+    const json = JSON.stringify(demoState, null, 2);
+    el.innerHTML = json
+        .replace(/"([^"]+)":/g, '<span class="json-key">"$1"</span>:')
+        .replace(/: "([^"]+)"/g, ': <span class="json-string">"$1"</span>')
+        .replace(/: (\d+)/g, ': <span class="json-number">$1</span>');
+}
+
+function renderTimeline() {
+    document.getElementById('voiceOutputTrack').innerHTML = `<div class="timeline-bar active" data-type="voice-output" style="left: 0%; width: 45%;">"Let me check..."</div>`;
+    document.getElementById('reasoningTrack').innerHTML = `<div class="timeline-bar" data-type="reasoning" style="left: 10%; width: 60%;">minimax calculation</div>`;
+    document.getElementById('lookupTrack').innerHTML = `<div class="timeline-bar" data-type="lookup" style="left: 5%; width: 15%;">state fetch</div>`;
+    document.getElementById('voiceResultTrack').innerHTML = `<div class="timeline-bar" data-type="voice-result" style="left: 70%; width: 30%;">"Bottom-right wins..."</div>`;
+}
+
+function setupChannelSwitcher() {
+    document.querySelectorAll('.channel-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.channel-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const channel = btn.dataset.channel;
+            document.body.setAttribute('data-channel', channel);
+            document.getElementById('channelIndicator').textContent = channel;
+            demoState.current_channel = channel;
+            renderState();
+        });
+    });
+}
+
+function setupCategoryToggles() {
+    document.querySelectorAll('.category-header').forEach(header => {
+        header.addEventListener('click', () => header.parentElement.classList.toggle('collapsed'));
+    });
+}
+    </script>
+</body>
+</html>
