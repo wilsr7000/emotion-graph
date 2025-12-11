@@ -35,6 +35,8 @@ body {
     background-color: var(--bg-primary);
     color: var(--text-primary);
     font-size: 14px; line-height: 1.5;
+    overflow-x: hidden;
+    -webkit-text-size-adjust: 100%;
 }
 .demo-container { display: flex; flex-direction: column; min-height: 100vh; }
 .demo-header {
@@ -183,7 +185,33 @@ body[data-channel="voice"] .conversation-panel { background-color: #2a1a2e; }
 body[data-channel="voice"] .channel-indicator { background-color: var(--accent-purple); }
 body[data-channel="voice"] .message.user .message-content { background-color: var(--accent-purple); }
 @media (max-width: 1200px) { .demo-main { grid-template-columns: 1fr 1fr; } .schema-panel { display: none; } }
-@media (max-width: 900px) { .demo-main { grid-template-columns: 1fr; } .center-panel { order: -1; } }
+@media (max-width: 900px) {
+    .demo-main { grid-template-columns: 1fr; overflow-y: auto; }
+    .center-panel { order: -1; }
+    .demo-header { padding: 10px 12px; }
+    .logo-text { font-size: 20px; }
+    .logo-subtitle { display: none; }
+    .channel-btn { padding: 6px 10px; font-size: 12px; }
+    .channel-btn svg { display: none; }
+    .session-info { display: none; }
+    .control-bar { padding: 8px 12px; }
+    .control-label { display: none; }
+    .url-input { min-width: 120px; font-size: 11px; }
+    .control-btn { padding: 6px 10px; font-size: 11px; }
+    .control-btn span { display: none; }
+    .control-btn svg { width: 16px; height: 16px; }
+    .panel { min-height: 300px; }
+    .lane-label { width: 70px; font-size: 10px; }
+    .timeline-scale { padding: 8px 82px 0 82px; font-size: 9px; }
+    .conversation-messages { min-height: 200px; }
+}
+@media (max-width: 600px) {
+    .channel-switcher { width: 100%; justify-content: center; order: 1; }
+    .control-bar { flex-direction: column; align-items: stretch; }
+    .control-group { width: 100%; }
+    .control-group:last-child { margin-left: 0; justify-content: space-between; }
+    .url-input { min-width: 0; flex: 1; }
+}
     </style>
 </head>
 <body>
