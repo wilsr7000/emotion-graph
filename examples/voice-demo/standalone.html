@@ -59,6 +59,32 @@ body {
 .session-status { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; }
 .session-status::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background-color: var(--text-muted); }
 .session-status.online::before { background-color: var(--accent-green); box-shadow: 0 0 8px var(--accent-green); }
+/* Control Bar */
+.control-bar { display: flex; align-items: center; gap: 12px; padding: 8px 20px; background-color: var(--bg-tertiary); border-bottom: 1px solid var(--border-color); flex-wrap: wrap; }
+.control-group { display: flex; align-items: center; gap: 8px; }
+.control-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.url-input { flex: 1; min-width: 200px; padding: 8px 12px; background-color: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); font-size: 12px; font-family: 'SF Mono', Monaco, monospace; }
+.url-input:focus { outline: none; border-color: var(--accent-blue); }
+.url-input::placeholder { color: var(--text-muted); }
+.control-btn { display: flex; align-items: center; gap: 6px; padding: 8px 14px; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.control-btn svg { width: 14px; height: 14px; }
+.control-btn.primary { background-color: var(--accent-blue); color: white; }
+.control-btn.primary:hover { background-color: #1a91da; }
+.control-btn.success { background-color: var(--accent-green); color: white; }
+.control-btn.success:hover { background-color: #15a857; }
+.control-btn.secondary { background-color: var(--bg-panel); color: var(--text-secondary); border: 1px solid var(--border-color); }
+.control-btn.secondary:hover { background-color: var(--bg-secondary); color: var(--text-primary); }
+.control-btn.danger { background-color: var(--accent-red); color: white; }
+.control-btn.danger:hover { background-color: #c9204f; }
+.control-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.listen-btn.listening { background-color: var(--accent-red); }
+.listen-btn.listening:hover { background-color: #c9204f; }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; background-color: var(--text-muted); }
+.status-dot.active { background-color: var(--accent-green); animation: pulse 1.5s infinite; }
+@keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(23, 191, 99, 0.4); } 50% { box-shadow: 0 0 0 6px rgba(23, 191, 99, 0); } }
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); padding: 12px 20px; background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); font-size: 13px; z-index: 1000; animation: toastIn 0.3s ease; }
+.toast.success { border-color: var(--accent-green); }
+@keyframes toastIn { from { opacity: 0; transform: translateX(-50%) translateY(20px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
 .demo-main {
     display: grid; grid-template-columns: 1fr 1.2fr 1fr; gap: var(--panel-gap);
     padding: var(--panel-gap); flex: 1; min-height: 0;
@@ -186,6 +212,35 @@ body[data-channel="voice"] .message.user .message-content { background-color: va
                 <span class="session-status online">Connected</span>
             </div>
         </header>
+
+        <!-- Control Bar -->
+        <div class="control-bar">
+            <div class="control-group">
+                <span class="control-label">Data URL</span>
+                <input type="text" class="url-input" id="dataUrlInput" placeholder="http://localhost:3000/api/state">
+            </div>
+            <div class="control-group">
+                <button class="control-btn primary listen-btn" id="listenBtn">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+                    <span id="listenBtnText">Start Listening</span>
+                </button>
+                <div class="status-dot" id="statusDot"></div>
+            </div>
+            <div class="control-group" style="margin-left: auto;">
+                <button class="control-btn secondary" id="storeBtn">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg>
+                    Store
+                </button>
+                <button class="control-btn secondary" id="loadBtn">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                    Load
+                </button>
+                <button class="control-btn success" id="shareBtn">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg>
+                    Share
+                </button>
+            </div>
+        </div>
 
         <main class="demo-main">
             <section class="panel conversation-panel">
@@ -346,8 +401,10 @@ const demoMessages = [
 // Poll interval in ms
 const POLL_INTERVAL = 500;
 
-// Data source URL (change this to your endpoint)
+// Data source URL
 let DATA_URL = null;
+let pollInterval = null;
+let isListening = false;
 
 document.addEventListener('DOMContentLoaded', () => {
     renderMessages();
@@ -355,11 +412,9 @@ document.addEventListener('DOMContentLoaded', () => {
     renderTimeline();
     setupChannelSwitcher();
     setupCategoryToggles();
-
-    // Start polling if URL is set
-    if (DATA_URL) {
-        setInterval(pollData, POLL_INTERVAL);
-    }
+    setupControls();
+    loadFromStorage();
+    checkUrlParams();
 });
 
 async function pollData() {
@@ -453,6 +508,138 @@ function setupCategoryToggles() {
     document.querySelectorAll('.category-header').forEach(header => {
         header.addEventListener('click', () => header.parentElement.classList.toggle('collapsed'));
     });
+}
+
+// Control Bar Functions
+function setupControls() {
+    const listenBtn = document.getElementById('listenBtn');
+    const storeBtn = document.getElementById('storeBtn');
+    const loadBtn = document.getElementById('loadBtn');
+    const shareBtn = document.getElementById('shareBtn');
+    const urlInput = document.getElementById('dataUrlInput');
+
+    listenBtn.addEventListener('click', toggleListening);
+    storeBtn.addEventListener('click', storeData);
+    loadBtn.addEventListener('click', loadData);
+    shareBtn.addEventListener('click', shareData);
+
+    urlInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && !isListening) toggleListening();
+    });
+}
+
+function toggleListening() {
+    const btn = document.getElementById('listenBtn');
+    const btnText = document.getElementById('listenBtnText');
+    const statusDot = document.getElementById('statusDot');
+    const urlInput = document.getElementById('dataUrlInput');
+
+    if (isListening) {
+        // Stop listening
+        clearInterval(pollInterval);
+        pollInterval = null;
+        isListening = false;
+        btn.classList.remove('listening');
+        btnText.textContent = 'Start Listening';
+        statusDot.classList.remove('active');
+        showToast('Stopped listening');
+    } else {
+        // Start listening
+        DATA_URL = urlInput.value.trim();
+        if (!DATA_URL) {
+            showToast('Please enter a data URL');
+            return;
+        }
+        isListening = true;
+        btn.classList.add('listening');
+        btnText.textContent = 'Stop Listening';
+        statusDot.classList.add('active');
+        pollInterval = setInterval(pollData, POLL_INTERVAL);
+        pollData(); // Immediate first poll
+        showToast('Listening to ' + DATA_URL);
+    }
+}
+
+function storeData() {
+    const dataToStore = {
+        state: demoState,
+        messages: demoMessages,
+        dataUrl: document.getElementById('dataUrlInput').value
+    };
+    localStorage.setItem('gsx-demo-data', JSON.stringify(dataToStore));
+    showToast('Data stored locally', 'success');
+}
+
+function loadData() {
+    const stored = localStorage.getItem('gsx-demo-data');
+    if (stored) {
+        const data = JSON.parse(stored);
+        if (data.state) Object.assign(demoState, data.state);
+        if (data.messages) {
+            demoMessages.length = 0;
+            demoMessages.push(...data.messages);
+        }
+        if (data.dataUrl) document.getElementById('dataUrlInput').value = data.dataUrl;
+        renderMessages();
+        renderState();
+        showToast('Data loaded from storage', 'success');
+    } else {
+        showToast('No stored data found');
+    }
+}
+
+function shareData() {
+    const dataToShare = {
+        state: demoState,
+        messages: demoMessages
+    };
+    const encoded = btoa(JSON.stringify(dataToShare));
+    const shareUrl = window.location.origin + window.location.pathname + '?data=' + encoded;
+
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(shareUrl).then(() => {
+            showToast('Share URL copied to clipboard!', 'success');
+        });
+    } else {
+        prompt('Copy this URL:', shareUrl);
+    }
+}
+
+function checkUrlParams() {
+    const params = new URLSearchParams(window.location.search);
+    const encodedData = params.get('data');
+    if (encodedData) {
+        try {
+            const data = JSON.parse(atob(encodedData));
+            if (data.state) Object.assign(demoState, data.state);
+            if (data.messages) {
+                demoMessages.length = 0;
+                demoMessages.push(...data.messages);
+            }
+            renderMessages();
+            renderState();
+            showToast('Loaded shared data', 'success');
+        } catch (e) {
+            console.error('Failed to parse shared data:', e);
+        }
+    }
+}
+
+function loadFromStorage() {
+    const stored = localStorage.getItem('gsx-demo-url');
+    if (stored) document.getElementById('dataUrlInput').value = stored;
+}
+
+function showToast(message, type = '') {
+    const existing = document.querySelector('.toast');
+    if (existing) existing.remove();
+
+    const toast = document.createElement('div');
+    toast.className = 'toast' + (type ? ' ' + type : '');
+    toast.textContent = message;
+    document.body.appendChild(toast);
+
+    setTimeout(() => toast.remove(), 3000);
 }
     </script>
 </body>
