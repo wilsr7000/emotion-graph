@@ -137,7 +137,12 @@ body {
 .lane-track { flex: 1; position: relative; height: 50px; background-color: var(--bg-tertiary); border-radius: 4px; overflow: hidden; }
 .lane-bar-container { position: relative; height: 100%; }
 .timeline-bar { position: absolute; top: 8px; height: 20px; border-radius: 4px; display: flex; align-items: center; padding: 0 8px; font-size: 11px; font-weight: 500; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.timeline-bar { transition: left 0.25s ease, width 0.25s ease; }
 .timeline-bar.active { animation: barPulse 1s ease infinite; }
+/* Live (still-growing) agent bubble: blinking cursor, no re-animation */
+.message-content.live .message-text::after { content: ''; display: inline-block; width: 2px; height: 1em; margin-left: 3px; vertical-align: text-bottom; background-color: currentColor; animation: cursorBlink 0.9s steps(2, start) infinite; }
+@keyframes cursorBlink { to { visibility: hidden; } }
+.message-content.live { box-shadow: 0 0 0 1px var(--accent-blue); }
 @keyframes barPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
 .timeline-bar[data-type="voice-output"] { background: linear-gradient(90deg, var(--voice-output-color), #4db8ff); }
 .timeline-bar[data-type="reasoning"] { background: linear-gradient(90deg, var(--reasoning-color), #9d7fff); }
@@ -446,14 +451,6 @@ function init() {
     checkUrlParams();
 }
 
-// Run now if the document is already parsed (e.g. when injected by a
-// preview service like htmlpreview.github.io), otherwise wait for it.
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-} else {
-    init();
-}
-
 async function pollData() {
     try {
         const response = await fetch(DATA_URL);
@@ -465,10 +462,15 @@ async function pollData() {
             renderState();
         }
 
+        // Agent status: 'idle' | 'speaking' | 'thinking'
+        if (data.status) agentStatus = data.status;
+
         // Update messages
         if (data.messages) {
             demoMessages.length = 0;
             demoMessages.push(...data.messages);
+            renderMessages();
+        } else if (data.status) {
             renderMessages();
         }
 
@@ -481,34 +483,120 @@ async function pollData() {
     }
 }
 
+// Update a lane's bar in place so width/position animate smoothly instead
+// of the bar being destroyed and re-created on every poll.
+function setBar(trackId, type, bar) {
+    const track = document.getElementById(trackId);
+    let el = track.querySelector('.timeline-bar');
+    if (!el) {
+        el = document.createElement('div');
+        el.className = 'timeline-bar';
+        el.dataset.type = type;
+        track.appendChild(el);
+    }
+    el.style.left = (bar.start || 0) + '%';
+    el.style.width = (bar.width || 0) + '%';
+    if (el.textContent !== (bar.label || '')) el.textContent = bar.label || '';
+    el.classList.toggle('active', !!bar.active);
+}
+
 function renderTimelineFromData(t) {
-    if (t.voiceOutput) document.getElementById('voiceOutputTrack').innerHTML = `<div class="timeline-bar ${t.voiceOutput.active ? 'active' : ''}" data-type="voice-output" style="left: ${t.voiceOutput.start}%; width: ${t.voiceOutput.width}%;">${t.voiceOutput.label}</div>`;
-    if (t.reasoning) document.getElementById('reasoningTrack').innerHTML = `<div class="timeline-bar ${t.reasoning.active ? 'active' : ''}" data-type="reasoning" style="left: ${t.reasoning.start}%; width: ${t.reasoning.width}%;">${t.reasoning.label}</div>`;
-    if (t.lookup) document.getElementById('lookupTrack').innerHTML = `<div class="timeline-bar ${t.lookup.active ? 'active' : ''}" data-type="lookup" style="left: ${t.lookup.start}%; width: ${t.lookup.width}%;">${t.lookup.label}</div>`;
-    if (t.voiceResult) document.getElementById('voiceResultTrack').innerHTML = `<div class="timeline-bar ${t.voiceResult.active ? 'active' : ''}" data-type="voice-result" style="left: ${t.voiceResult.start}%; width: ${t.voiceResult.width}%;">${t.voiceResult.label}</div>`;
+    if (t.voiceOutput) setBar('voiceOutputTrack', 'voice-output', t.voiceOutput);
+    if (t.reasoning) setBar('reasoningTrack', 'reasoning', t.reasoning);
+    if (t.lookup) setBar('lookupTrack', 'lookup', t.lookup);
+    if (t.voiceResult) setBar('voiceResultTrack', 'voice-result', t.voiceResult);
     if (t.elapsed) document.getElementById('timelineElapsed').textContent = t.elapsed;
 }
 
+// Agent status drives the live cursor and the typing indicator:
+//   'idle' (default), 'speaking' (last agent bubble is still growing),
+//   'thinking' (show typing dots, nothing is being spoken yet).
+let agentStatus = 'idle';
+
+// Collapse consecutive agent messages into one turn so a reply that
+// arrives sentence by sentence streams into a single bubble.
+function buildTurns(messages) {
+    const turns = [];
+    messages.forEach(msg => {
+        const last = turns[turns.length - 1];
+        if (msg.type === 'agent' && last && last.type === 'agent') {
+            last.text = (last.text + ' ' + (msg.text || '')).trim();
+            if (msg.game) { last.game = msg.game; last.display = msg.display; }
+            if (msg.streaming) last.streaming = true;
+        } else {
+            turns.push({ type: msg.type, text: msg.text || '', game: msg.game, display: msg.display, streaming: !!msg.streaming });
+        }
+    });
+    return turns;
+}
+
+function gameMarkup(turn) {
+    if (turn.game === 'hangman') return `<div class="game-display"><div class="hangman-word"></div></div>`;
+    if (turn.game === 'tictactoe') return `<div class="game-display"><div class="tictactoe-board">  _ | _ | _\n ───┼───┼───\n  _ | _ | _\n ───┼───┼───\n  _ | _ | _</div></div>`;
+    if (turn.game === 'tictactoe-move') return `<div class="game-display"><div class="tictactoe-board">  O | _ | _\n ───┼───┼───\n  _ | X | _\n ───┼───┼───\n  _ | _ | _</div></div>`;
+    return '';
+}
+
+function createTurnEl(turn, index) {
+    const el = document.createElement('div');
+    el.className = `message ${turn.type}`;
+    el.dataset.turn = index;
+    el.innerHTML = `<div class="message-content"><span class="message-text"></span>${gameMarkup(turn)}</div>` +
+        `<div class="message-meta">${turn.type === 'user' ? 'You' : 'Agent'} · just now</div>`;
+    el.querySelector('.message-text').textContent = turn.text;
+    if (turn.game === 'hangman') el.querySelector('.hangman-word').textContent = turn.display || '';
+    return el;
+}
+
+// Diff-based render: existing bubbles are updated in place, new ones are
+// appended, and nothing is re-created, so animations only play once.
 function renderMessages() {
     const container = document.getElementById('conversationMessages');
-    container.innerHTML = '';
-    demoMessages.forEach(msg => {
-        const el = document.createElement('div');
-        el.className = `message ${msg.type}`;
-        let content = `<div class="message-content">${msg.text}`;
-        if (msg.game === 'hangman') content += `<div class="game-display"><div class="hangman-word">${msg.display}</div></div>`;
-        else if (msg.game === 'tictactoe') content += `<div class="game-display"><div class="tictactoe-board">  _ | _ | _\n ───┼───┼───\n  _ | _ | _\n ───┼───┼───\n  _ | _ | _</div></div>`;
-        else if (msg.game === 'tictactoe-move') content += `<div class="game-display"><div class="tictactoe-board">  O | _ | _\n ───┼───┼───\n  _ | X | _\n ───┼───┼───\n  _ | _ | _</div></div>`;
-        content += '</div>';
-        content += `<div class="message-meta">${msg.type === 'user' ? 'You' : 'Agent'} · just now</div>`;
-        el.innerHTML = content;
-        container.appendChild(el);
+    const turns = buildTurns(demoMessages);
+    const nearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 80;
+    const existing = Array.from(container.querySelectorAll('.message[data-turn]'));
+    let added = false;
+
+    turns.forEach((turn, i) => {
+        let el = existing[i];
+        if (el && !el.classList.contains(turn.type)) { el.remove(); el = null; existing[i] = null; }
+        if (!el) {
+            el = createTurnEl(turn, i);
+            const typing = container.querySelector('.typing-row');
+            container.insertBefore(el, typing || null);
+            added = true;
+        } else {
+            const textEl = el.querySelector('.message-text');
+            if (textEl.textContent !== turn.text) textEl.textContent = turn.text;
+            const hadGame = !!el.querySelector('.game-display');
+            if (turn.game && !hadGame) el.querySelector('.message-content').insertAdjacentHTML('beforeend', gameMarkup(turn));
+            if (turn.game === 'hangman') {
+                const w = el.querySelector('.hangman-word');
+                if (w && w.textContent !== (turn.display || '')) w.textContent = turn.display || '';
+            }
+        }
+        const isLive = turn.type === 'agent' && i === turns.length - 1 && (turn.streaming || agentStatus === 'speaking');
+        el.querySelector('.message-content').classList.toggle('live', isLive);
     });
-    const typing = document.createElement('div');
-    typing.className = 'message agent';
-    typing.innerHTML = `<div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>`;
-    container.appendChild(typing);
-    container.scrollTop = container.scrollHeight;
+
+    // Drop any stale bubbles beyond the current turn count (feed was reset).
+    existing.slice(turns.length).forEach(el => el && el.remove());
+
+    // Typing indicator only while the agent is thinking and not yet speaking.
+    let typing = container.querySelector('.typing-row');
+    if (agentStatus === 'thinking') {
+        if (!typing) {
+            typing = document.createElement('div');
+            typing.className = 'message agent typing-row';
+            typing.innerHTML = `<div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>`;
+            container.appendChild(typing);
+            added = true;
+        }
+    } else if (typing) {
+        typing.remove();
+    }
+
+    if (added || nearBottom) container.scrollTop = container.scrollHeight;
 }
 
 function renderState() {
@@ -521,10 +609,12 @@ function renderState() {
 }
 
 function renderTimeline() {
-    document.getElementById('voiceOutputTrack').innerHTML = `<div class="timeline-bar active" data-type="voice-output" style="left: 0%; width: 45%;">"Let me check..."</div>`;
-    document.getElementById('reasoningTrack').innerHTML = `<div class="timeline-bar" data-type="reasoning" style="left: 10%; width: 60%;">minimax calculation</div>`;
-    document.getElementById('lookupTrack').innerHTML = `<div class="timeline-bar" data-type="lookup" style="left: 5%; width: 15%;">state fetch</div>`;
-    document.getElementById('voiceResultTrack').innerHTML = `<div class="timeline-bar" data-type="voice-result" style="left: 70%; width: 30%;">"Bottom-right wins..."</div>`;
+    renderTimelineFromData({
+        voiceOutput: { start: 0, width: 45, label: '"Let me check..."', active: true },
+        reasoning: { start: 10, width: 60, label: 'minimax calculation' },
+        lookup: { start: 5, width: 15, label: 'state fetch' },
+        voiceResult: { start: 70, width: 30, label: '"Bottom-right wins..."' }
+    });
 }
 
 function setupChannelSwitcher() {
@@ -694,6 +784,15 @@ function showToast(message, type = '') {
     document.body.appendChild(toast);
 
     setTimeout(() => toast.remove(), 3000);
+}
+
+// Run now if the document is already parsed (e.g. when injected by a
+// preview service like htmlpreview.github.io), otherwise wait for it.
+// This stays at the very end so every declaration above is initialized.
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+} else {
+    init();
 }
     </script>
 </body>
