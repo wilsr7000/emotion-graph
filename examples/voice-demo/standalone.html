@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GSX Voice Demo</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='11' fill='%231da1f2'/%3E%3C/svg%3E">
     <style>
 /* GSX Voice Demo - Styles */
 :root {
@@ -434,7 +435,7 @@ let DATA_URL = null;
 let pollInterval = null;
 let isListening = false;
 
-document.addEventListener('DOMContentLoaded', () => {
+function init() {
     renderMessages();
     renderState();
     renderTimeline();
@@ -443,7 +444,15 @@ document.addEventListener('DOMContentLoaded', () => {
     setupControls();
     loadFromStorage();
     checkUrlParams();
-});
+}
+
+// Run now if the document is already parsed (e.g. when injected by a
+// preview service like htmlpreview.github.io), otherwise wait for it.
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+} else {
+    init();
+}
 
 async function pollData() {
     try {
@@ -579,6 +588,7 @@ function toggleListening() {
             return;
         }
         isListening = true;
+        try { localStorage.setItem('gsx-demo-url', DATA_URL); } catch (e) {}
         btn.classList.add('listening');
         btnText.textContent = 'Stop Listening';
         statusDot.classList.add('active');
@@ -588,28 +598,46 @@ function toggleListening() {
     }
 }
 
+// Base64 helpers that survive non-Latin1 characters (emoji, box-drawing, etc.)
+function encodeData(obj) {
+    return btoa(unescape(encodeURIComponent(JSON.stringify(obj))));
+}
+function decodeData(str) {
+    return JSON.parse(decodeURIComponent(escape(atob(str))));
+}
+
+function applyData(data) {
+    if (data.state) Object.assign(demoState, data.state);
+    if (data.messages) {
+        demoMessages.length = 0;
+        demoMessages.push(...data.messages);
+    }
+    renderMessages();
+    renderState();
+}
+
 function storeData() {
     const dataToStore = {
         state: demoState,
         messages: demoMessages,
         dataUrl: document.getElementById('dataUrlInput').value
     };
-    localStorage.setItem('gsx-demo-data', JSON.stringify(dataToStore));
-    showToast('Data stored locally', 'success');
+    try {
+        localStorage.setItem('gsx-demo-data', JSON.stringify(dataToStore));
+        if (dataToStore.dataUrl) localStorage.setItem('gsx-demo-url', dataToStore.dataUrl);
+        showToast('Data stored locally', 'success');
+    } catch (e) {
+        showToast('Storage unavailable in this browser');
+    }
 }
 
 function loadData() {
-    const stored = localStorage.getItem('gsx-demo-data');
+    let stored = null;
+    try { stored = localStorage.getItem('gsx-demo-data'); } catch (e) {}
     if (stored) {
         const data = JSON.parse(stored);
-        if (data.state) Object.assign(demoState, data.state);
-        if (data.messages) {
-            demoMessages.length = 0;
-            demoMessages.push(...data.messages);
-        }
+        applyData(data);
         if (data.dataUrl) document.getElementById('dataUrlInput').value = data.dataUrl;
-        renderMessages();
-        renderState();
         showToast('Data loaded from storage', 'success');
     } else {
         showToast('No stored data found');
@@ -617,35 +645,32 @@ function loadData() {
 }
 
 function shareData() {
-    const dataToShare = {
-        state: demoState,
-        messages: demoMessages
-    };
-    const encoded = btoa(JSON.stringify(dataToShare));
-    const shareUrl = window.location.origin + window.location.pathname + '?data=' + encoded;
+    const encoded = encodeData({ state: demoState, messages: demoMessages });
+    // Put the payload in the URL hash so it works both when served directly
+    // and when viewed through a preview service that uses the query string.
+    const shareUrl = window.location.href.split('#')[0] + '#data=' + encoded;
 
-    if (navigator.clipboard) {
-        navigator.clipboard.writeText(shareUrl).then(() => {
-            showToast('Share URL copied to clipboard!', 'success');
-        });
+    const done = () => showToast('Share URL copied to clipboard!', 'success');
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(shareUrl).then(done, () => prompt('Copy this URL:', shareUrl));
     } else {
         prompt('Copy this URL:', shareUrl);
     }
 }
 
 function checkUrlParams() {
-    const params = new URLSearchParams(window.location.search);
-    const encodedData = params.get('data');
+    let encodedData = null;
+    const hash = window.location.hash || '';
+    const hashMatch = hash.match(/[#&]data=([^&]+)/);
+    if (hashMatch) {
+        encodedData = hashMatch[1];
+    } else {
+        // Legacy ?data= links
+        encodedData = new URLSearchParams(window.location.search).get('data');
+    }
     if (encodedData) {
         try {
-            const data = JSON.parse(atob(encodedData));
-            if (data.state) Object.assign(demoState, data.state);
-            if (data.messages) {
-                demoMessages.length = 0;
-                demoMessages.push(...data.messages);
-            }
-            renderMessages();
-            renderState();
+            applyData(decodeData(encodedData));
             showToast('Loaded shared data', 'success');
         } catch (e) {
             console.error('Failed to parse shared data:', e);
@@ -654,8 +679,9 @@ function checkUrlParams() {
 }
 
 function loadFromStorage() {
-    const stored = localStorage.getItem('gsx-demo-url');
-    if (stored) document.getElementById('dataUrlInput').value = stored;
+    let url = null;
+    try { url = localStorage.getItem('gsx-demo-url'); } catch (e) {}
+    if (url) document.getElementById('dataUrlInput').value = url;
 }
 
 function showToast(message, type = '') {
